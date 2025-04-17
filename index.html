@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AgroTla – Smarter Soil</title>
+  <link rel="icon" href="img/icon img.png" type="image/png">
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background-color: #f9f9f5;
+      color: #3C6E47;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      background: #ffffff;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    header img {
+      max-width: 320px;
+      height: auto;
+    }
+
+    main {
+      flex: 1; /* 🧠 Push footer down when space is available */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 80px 20px;
+    }
+
+    main h1 {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+
+    main p {
+      font-size: 20px;
+      color: #555;
+      max-width: 600px;
+    }
+
+    .cta-button {
+      margin-top: 40px;
+      background-color: #3C6E47;
+      color: white;
+      padding: 14px 30px;
+      font-size: 18px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .cta-button:hover {
+      background-color: #2d5636;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 14px;
+      color: #aaa;
+      padding: 20px;
+    }
+
+    .accent {
+      color: #7C4A22;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <img src="img/small main png img.png" alt="AgroTla Logo">
+  </header>
+
+  <main>
+    <h1>Welcome to <span class="accent">AgroTla</span></h1>
+    <p>Your precision farming partner. Manage your fields, analyze soil quality, and visualize health with intuitive tools built for modern agriculture.</p>
+    <button class="cta-button" onclick="window.location.href='login.html'">Launch Dashboard</button>
+  </main>
+
+  <footer>
+    &copy; 2025 AgroTla. All rights reserved.
+  </footer>
+
+</body>
+</html>

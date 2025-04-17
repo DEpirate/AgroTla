@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Draw/Delete/Edit Fields</title>
+  <link rel="icon" href="img/icon img.png" type="image/png">
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyABcH_xG3R1WHRf7uvuozB91B7vsY6aTSA&libraries=drawing,geometry"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background-color: #f9f9f5;
+      color: #3C6E47;
+    }
+
+    header {
+      height: 70px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 30px;
+      background-color: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      z-index: 1000;
+    }
+
+    header img {
+      height: 50px;
+    }
+
+    .nav-buttons button {
+      margin: 0 6px;
+      padding: 6px 12px;
+      font-size: 18px;
+      border: none;
+      background-color: #3C6E47;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .nav-buttons button:hover {
+      background-color: #2a5034;
+    }
+
+    #logoutBtn {
+      margin-left: 20px;
+      padding: 6px 16px;
+      font-size: 14px;
+      border: none;
+      background-color: #7C4A22;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    #logoutBtn:hover {
+      background-color: #A8683D;
+    }
+
+    footer {
+      height: 14px;
+      font-size: 12px;
+      padding: 8px 16px;
+      background: #fff;
+      text-align: center;
+      color: #aaa;
+      z-index: 20;
+      box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    #map {
+      flex: 1;
+      margin-right: 260px;
+      position: relative;
+    }
+
+    #ui-panel {
+      position: absolute;
+      top: 70px;        
+      bottom: 14px;     
+      right: 0;
+      width: 260px;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      font-family: sans-serif;
+      z-index: 10;
+      box-shadow: -2px 0 6px rgba(0, 0, 0, 0.2);
+    }
+
+    #controls {
+      padding: 10px;
+      border-bottom: 2px solid #a0a0a0;
+    }
+
+    #controls button {
+      display: block;
+      width: 100%;
+      height: 45px;
+      font-size: 16px;
+      margin-bottom: 8px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    #editNameBtn {
+      height: 30px !important;
+      font-size: 14px;
+    }
+
+    .active-mode {
+      background-color: #cce4ff;
+    }
+
+    .save-button {
+      background-color: #b2f2bb;
+    }
+
+    .field-list {
+      padding: 10px;
+      overflow-y: auto;
+      flex-grow: 1;
+    }
+
+    .field-item {
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+      font-size: 14px;
+      user-select: none; 
+      cursor: pointer;
+    }
+
+    .field-item:last-child {
+      border-bottom: none;
+    }
+
+  </style>
+</head>
+<body>
+  <div id="ui-panel">
+    <div id="controls">
+      <button id="moveTool" onclick="setDrawingMode(null)">🖐️ Move</button>
+      <button id="polyTool" onclick="activatePolygonMode()">📐 Polygon</button>
+      <hr style="margin: 10px 0;">
+      <button id="deleteBtn" onclick="toggleDeleteMode()">🗑️ Delete Mode</button>
+      <button id="editBtn" onclick="toggleEditMode()">✏️ Edit Mode</button>
+      <button id="editNameBtn" onclick="toggleEditNameMode()">📝 Edit Name</button>
+      <button class="save-button" onclick="saveAllEdits()">💾 Save All Edits</button>
+    </div>
+    <div class="field-list" id="fieldList">
+    </div>
+  </div>
+
+  <header>
+    <img src="img/small main png img.png" alt="AgroTla Logo">
+    <div class="nav-buttons">
+      <button onclick="location.href='dashboard.html'">Dashboard</button>
+      <button onclick="location.href='drop_pins.html'">Add Measurements</button>
+      <button onclick="location.href='gradient_field_fill.html'">View Gradients</button>
+    </div>
+    <div>
+      <span id="username-display">...</span>
+      <button id="logoutBtn">Logout</button>
+    </div>
+  </header>
+  
+  
+
+  <div id="map"></div>
+
+  <script>
+    let map, drawingManager;
+    let deleteMode = false;
+    let editMode = false;
+    let editNameMode = false;
+    const MIN_ZOOM_TO_SHOW_NAMES = 17;
+    const fieldOverlays = [];
+
+    function setDrawingMode(mode) {
+      drawingManager.setDrawingMode(mode);
+      document.getElementById("moveTool").classList.toggle("active-mode", mode === null);
+      document.getElementById("polyTool").classList.remove("active-mode");
+    }
+
+    function activatePolygonMode() {
+      if (deleteMode) toggleDeleteMode();
+      if (editMode) toggleEditMode();
+      if (editNameMode) toggleEditNameMode();
+      setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
+      document.getElementById("polyTool").classList.add("active-mode");
+    }
+
+    function toggleDeleteMode() {
+      deleteMode = !deleteMode;
+      document.getElementById("deleteBtn").classList.toggle("active-mode", deleteMode);
+      if (deleteMode) {
+        if (editMode) toggleEditMode();
+        if (editNameMode) toggleEditNameMode();
+        setDrawingMode(null);
+      }
+    }
+
+    function toggleEditMode() {
+      editMode = !editMode;
+      document.getElementById("editBtn").classList.toggle("active-mode", editMode);
+      fieldOverlays.forEach(f => f.polygon.setEditable(editMode));
+      if (editMode) {
+        if (deleteMode) toggleDeleteMode();
+        if (editNameMode) toggleEditNameMode();
+        setDrawingMode(null);
+      }
+    }
+
+    function toggleEditNameMode() {
+      editNameMode = !editNameMode;
+      document.getElementById("editNameBtn").classList.toggle("active-mode", editNameMode);
+      if (editNameMode) {
+        if (deleteMode) toggleDeleteMode();
+        if (editMode) toggleEditMode();
+        setDrawingMode(null);
+      }
+    }
+
+    function saveAllEdits() {
+      fieldOverlays.forEach(f => {
+        const path = f.polygon.getPath();
+        const updatedCoords = [];
+        for (let i = 0; i < path.getLength(); i++) {
+          updatedCoords.push({ lat: path.getAt(i).lat(), lng: path.getAt(i).lng() });
+        }
+        const area = google.maps.geometry.spherical.computeArea(path);
+
+        fetch(`http://localhost:5000/update-field/${f.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ coordinates: updatedCoords, area: area })
+        });
+      });
+      alert("✅ All edits saved!");
+    }
+
+    function initMap() {
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 45.87637895024337, lng: 15.062096009604797 },
+        zoom: 17,
+        mapTypeId: "hybrid",
+        disableDefaultUI: true,
+        zoomControl: true,
+        zoomControlOptions: {
+          position: google.maps.ControlPosition.LEFT_TOP
+        },
+        styles: [
+          { featureType: "all", elementType: "all", stylers: [{ visibility: "off" }] },
+          { featureType: "road", elementType: "geometry", stylers: [{ visibility: "on" }] },
+          { featureType: "road", elementType: "labels", stylers: [{ visibility: "on" }] },
+          { featureType: "administrative.locality", elementType: "labels.text", stylers: [{ visibility: "on" }] },
+          { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ visibility: "on" }] }
+        ]
+      });
+
+      drawingManager = new google.maps.drawing.DrawingManager({
+        drawingMode: null,
+        drawingControl: false,
+        polygonOptions: {
+          fillColor: '#FF0000',
+          fillOpacity: 0.5,
+          strokeWeight: 2
+        }
+      });
+
+      drawingManager.setMap(map);
+
+      drawingManager.addListener('overlaycomplete', function (e) {
+        if (e.type === 'polygon') {
+          const name = prompt("Enter a name for this field:");
+          if (!name) return;
+
+          const path = e.overlay.getPath();
+          const coordinates = [];
+          for (let i = 0; i < path.getLength(); i++) {
+            coordinates.push({ lat: path.getAt(i).lat(), lng: path.getAt(i).lng() });
+          }
+          const area = google.maps.geometry.spherical.computeArea(path);
+
+          fetch('http://localhost:5000/save-field', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: "include",
+            body: JSON.stringify({ coordinates, area, name })
+          })
+          .then(res => res.json())
+          .then(data => {
+            const label = createTextLabel(getCentroid(coordinates), name);
+            label.setMap(map);
+            attachPolygonEvents(e.overlay, data.field_id, name, label);
+            fieldOverlays.push({ polygon: e.overlay, id: data.field_id, name, label });
+            appendFieldToList(name, coordinates);
+            alert("✅ Field saved!");
+          });
+        }
+      });
+
+      fetch('http://localhost:5000/get-user-fields', {
+        credentials: "include"
+      })
+      .then(res => res.json())
+      .then(data => {
+        const fieldList = document.getElementById("fieldList");
+        fieldList.innerHTML = "";
+
+        data.fields.forEach(f => {
+          const coords = JSON.parse(f.coordinates).map(c => ({ lat: c.lat, lng: c.lng }));
+          const polygon = new google.maps.Polygon({
+            paths: coords,
+            map: map,
+            fillColor: '#FF0000',
+            fillOpacity: 0.5,
+            strokeWeight: 2,
+            editable: editMode
+          });
+
+          const label = createTextLabel(getCentroid(coords), f.name);
+          label.setMap(map);
+
+          attachPolygonEvents(polygon, f.id, f.name, label);
+          fieldOverlays.push({ polygon, id: f.id, name: f.name, label });
+
+          appendFieldToList(f.name, coords);
+        });
+      });
+
+      map.addListener("zoom_changed", () => {
+        const zoom = map.getZoom();
+        fieldOverlays.forEach(f => {
+          if (f.label) {
+            f.label.setVisible(zoom >= MIN_ZOOM_TO_SHOW_NAMES);
+          }
+        });
+      });
+    }
+
+    function appendFieldToList(name, coords) {
+      const list = document.getElementById("fieldList");
+      const item = document.createElement("div");
+      item.className = "field-item";
+      item.textContent = name;
+
+      item.onclick = () => {
+        const bounds = new google.maps.LatLngBounds();
+        coords.forEach(c => bounds.extend(c));
+        map.fitBounds(bounds);
+      };
+
+      list.appendChild(item);
+    }
+
+    function attachPolygonEvents(polygon, id, name, label) {
+      polygon.addListener('click', () => {
+        if (deleteMode) {
+          if (confirm("Delete this field?")) {
+            fetch(`http://localhost:5000/delete-field/${id}`, { method: 'DELETE' })
+              .then(res => res.json())
+              .then(data => {
+                if (data.status === "deleted") {
+                  polygon.setMap(null);
+                  label.setMap(null);
+                  alert("Field deleted.");
+                  // Also remove from UI
+                  const list = document.getElementById("fieldList");
+                  list.innerHTML = "";
+                  fieldOverlays.forEach(f => appendFieldToList(f.name));
+                }
+              });
+          }
+        } else if (editNameMode) {
+          const newName = prompt("Enter new name:", name);
+          if (!newName) return;
+          fetch(`http://localhost:5000/update-field-name/${id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newName })
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.status === "updated") {
+              label.setLabel({
+                text: newName,
+                fontSize: "14px",
+                fontWeight: "bold",
+                color: "white"
+              });
+              const target = fieldOverlays.find(f => f.id === id);
+              if (target) target.name = newName;
+              alert("✅ Name updated!");
+              const list = document.getElementById("fieldList");
+              list.innerHTML = "";
+              fieldOverlays.forEach(f => appendFieldToList(f.name));
+            }
+          });
+        }
+      });
+    }
+
+    function createTextLabel(position, text) {
+      return new google.maps.Marker({
+        position,
+        label: {
+          text: text,
+          fontSize: "14px",
+          fontWeight: "bold",
+          color: "white"
+        },
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 0,
+          fillOpacity: 0,
+          strokeOpacity: 0
+        },
+        clickable: false,
+        zIndex: 999
+      });
+    }
+
+    function getCentroid(coords) {
+      let area = 0, x = 0, y = 0;
+      for (let i = 0, j = coords.length - 1; i < coords.length; j = i++) {
+        const xi = coords[i].lng, yi = coords[i].lat;
+        const xj = coords[j].lng, yj = coords[j].lat;
+        const f = xi * yj - xj * yi;
+        area += f;
+        x += (xi + xj) * f;
+        y += (yi + yj) * f;
+      }
+      area *= 0.5;
+      if (area === 0) return coords[0];
+      const factor = 1 / (6 * area);
+      return { lat: y * factor, lng: x * factor };
+    }
+
+    window.onload = initMap;
+
+    fetch("http://localhost:5000/check-session", {
+      credentials: "include"
+    })
+    .then(res => res.json())
+    .then(session => {
+      if (!session.logged_in) {
+        window.location.href = "login.html";
+      } else {
+        document.getElementById("username-display").innerText = session.username;
+      }
+    });
+
+    document.getElementById("logoutBtn").onclick = () => {
+      fetch("http://localhost:5000/logout", {
+        method: "POST",
+        credentials: "include"
+      }).then(() => {
+        window.location.href = "login.html";
+      });
+    };
+
+  </script>
+
+<footer>
+  &copy; 2025 AgroTla. All rights reserved.
+</footer>
+
+</body>
+</html>

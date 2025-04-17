@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>2D Gradient Fill</title>
+  <link rel="icon" href="img/icon img.png" type="image/png">
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyABcH_xG3R1WHRf7uvuozB91B7vsY6aTSA&libraries=geometry"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background-color: #f9f9f5;
+      color: #3C6E47;
+    }
+
+    header {
+      height: 70px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 30px;
+      background-color: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      z-index: 1000;
+    }
+
+    header img {
+      height: 50px;
+    }
+
+    .nav-buttons button {
+      margin: 0 6px;
+      padding: 6px 12px;
+      font-size: 18px;
+      border: none;
+      background-color: #3C6E47;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .nav-buttons button:hover {
+      background-color: #2a5034;
+    }
+
+    #logoutBtn {
+      margin-left: 20px;
+      padding: 6px 16px;
+      font-size: 14px;
+      border: none;
+      background-color: #7C4A22;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    #logoutBtn:hover {
+      background-color: #A8683D;
+    }
+
+    #map {
+      flex: 1;
+      margin-right: 260px;
+      position: relative;
+    }
+
+    footer {
+      height: 14px;
+      font-size: 12px;
+      padding: 8px 16px;
+      background: #fff;
+      text-align: center;
+      color: #aaa;
+      z-index: 20;
+      box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    #ui-panel {
+      position: absolute;
+      top: 70px;
+      bottom: 14px;
+      right: 0;
+      width: 260px;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      font-family: sans-serif;
+      z-index: 10;
+      box-shadow: -2px 0 6px rgba(0, 0, 0, 0.2);
+    }
+
+    .field-list {
+      padding: 10px;
+      overflow-y: auto;
+      flex-grow: 1;
+    }
+
+    .field-item {
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+      font-size: 14px;
+      user-select: none;
+      cursor: pointer;
+    }
+
+    .field-item:last-child {
+      border-bottom: none;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .legend-color {
+      width: 24px;
+      height: 16px;
+      margin-right: 8px;
+      border: 1px solid #999;
+    }
+
+    #legend-content {
+      overflow-y: auto;
+      flex-grow: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <img src="img/small main png img.png" alt="AgroTla Logo">
+    <div class="nav-buttons">
+      <button onclick="location.href='dashboard.html'">Dashboard</button>
+      <button onclick="location.href='draw_fields.html'">Create Fields</button>
+      <button onclick="location.href='drop_pins.html'">Add Measurements</button>
+    </div>
+    <div>
+      <span id="username-display">...</span>
+      <button id="logoutBtn">Logout</button>
+    </div>
+  </header>
+
+  <div id="map"></div>
+
+  <div id="ui-panel">
+    <div id="legend-controls" style="padding: 10px; border-bottom: 2px solid #ccc;">
+      <div style="text-align: center; font-weight: bold;" id="legend-title">pH</div><br>
+      <div id="legend-content"></div>
+      <br>
+      <label><input type="checkbox" id="transparencyToggle" checked onchange="toggleTransparency()"> Opaque</label>
+      <br><br>
+      <label for="dataTypeSelect">Show Value:</label><br>
+      <select id="dataTypeSelect" onchange="onDataTypeChange()" style="margin-top: 4px; width: 100%;">
+        <option value="ph" selected>pH</option>
+        <option value="n">N - Nitrogen</option>
+        <option value="p">P - Phosphorus</option>
+        <option value="k">K - Potassium</option>
+      </select>
+    </div>
+    <div class="field-list" id="fieldList">
+      <!-- Filled dynamically with field names -->
+    </div>
+  </div>
+  
+
+  <footer>
+    &copy; 2025 AgroTla. All rights reserved.
+  </footer>
+
+  <script>
+    let map;
+    const pinMarkers = [];
+    const MIN_ZOOM_TO_SHOW_PINS = 17;
+    let opaqueGradient = true;
+
+    function toggleTransparency() {
+      opaqueGradient = document.getElementById('transparencyToggle').checked;
+      map.panBy(0, 0); // force redraw
+    }
+
+    function initMap() {
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 45.87637895024337, lng: 15.062096009604797 },
+        zoom: 17,
+        mapTypeId: "hybrid",
+        disableDefaultUI: true,
+        zoomControl: true, // Make sure zoomControl is enabled
+        zoomControlOptions: {
+          position: google.maps.ControlPosition.LEFT_TOP
+        },
+        styles: [
+        {
+            featureType: "all",
+            elementType: "all",
+            stylers: [{ visibility: "off" }] // Hide everything by default
+        },
+        {
+            featureType: "road",
+            elementType: "geometry",
+            stylers: [{ visibility: "on" }] // Show road lines
+        },
+        {
+            featureType: "road",
+            elementType: "labels",
+            stylers: [{ visibility: "on" }] // Show road names
+        },
+        {
+            featureType: "administrative.locality", // Town/City names
+            elementType: "labels.text",
+            stylers: [{ visibility: "on" }]
+        },
+        {
+            featureType: "administrative.locality", // Ensure label styling
+            elementType: "labels.text.fill",
+            stylers: [{ visibility: "on" }]
+        }
+        ]
+      });
+
+      fetch("http://localhost:5000/get-user-fields-with-pins", {
+        credentials: "include"
+      })
+      .then(res => res.json())
+      .then(data => {
+        const fieldList = document.getElementById("fieldList");
+        fieldList.innerHTML = "";
+
+        data.fields.forEach(field => {
+          appendFieldToList({
+            name: field.name,
+            coords: JSON.parse(field.coordinates)
+          });
+          drawField(field);
+        });
+      });
+        
+      onDataTypeChange();
+
+      map.addListener("zoom_changed", () => {
+        const zoom = map.getZoom();
+        pinMarkers.forEach(marker => {
+          marker.setVisible(zoom >= MIN_ZOOM_TO_SHOW_PINS);
+        });
+      });
+    }
+
+    function drawField(field) {
+      const coords = JSON.parse(field.coordinates);
+      const pins = field.pins;
+      if (!pins.length) return;
+
+      const overlay = new google.maps.OverlayView();
+
+      overlay.onAdd = function () {
+        const canvas = document.createElement("canvas");
+        canvas.style.position = "absolute";
+        overlay.canvas = canvas;
+        overlay.ctx = canvas.getContext("2d");
+        overlay.getPanes().overlayLayer.appendChild(canvas);
+
+        overlay.markers = pins.map(pin => {
+          const marker = new google.maps.Marker({
+            position: { lat: pin.lat, lng: pin.lng },
+            map: map,
+            label: `${pin.ph}`,
+            visible: false
+          });
+          marker._data = pin;
+          pinMarkers.push(marker);
+          return marker;
+        });
+      };
+
+      overlay.draw = function () {
+        const proj = overlay.getProjection();
+        const bounds = getPixelBounds(proj, coords);
+        const pixelSkip = 2;
+
+        const mapBounds = map.getBounds();
+        const isVisible = coords.some(p => mapBounds.contains(new google.maps.LatLng(p.lat, p.lng)));
+        if (!isVisible) {
+          overlay.canvas.style.display = "none";
+          overlay.markers.forEach(m => m.setVisible(false));
+          return;
+        } else {
+          overlay.canvas.style.display = "block";
+        }
+
+        const width = Math.ceil((bounds.right - bounds.left) / pixelSkip);
+        const height = Math.ceil((bounds.bottom - bounds.top) / pixelSkip);
+
+        const canvas = overlay.canvas;
+        canvas.style.left = bounds.left + "px";
+        canvas.style.top = bounds.top + "px";
+        canvas.width = width;
+        canvas.height = height;
+        canvas.style.width = (width * pixelSkip) + "px";
+        canvas.style.height = (height * pixelSkip) + "px";
+
+        const ctx = overlay.ctx;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const path = coords.map(p => {
+          const pt = proj.fromLatLngToDivPixel(new google.maps.LatLng(p.lat, p.lng));
+          return { x: (pt.x - bounds.left) / pixelSkip, y: (pt.y - bounds.top) / pixelSkip };
+        });
+
+        ctx.beginPath();
+        path.forEach((pt, i) => {
+          if (i === 0) ctx.moveTo(pt.x, pt.y);
+          else ctx.lineTo(pt.x, pt.y);
+        });
+        ctx.closePath();
+        ctx.clip();
+
+        const dataType = document.getElementById("dataTypeSelect")?.value || "ph";
+
+        const pinPixels = pins
+          .filter(pin => typeof pin[dataType] === "number")
+          .map(pin => {
+            const pt = proj.fromLatLngToDivPixel(new google.maps.LatLng(pin.lat, pin.lng));
+            return {
+              x: (pt.x - bounds.left) / pixelSkip,
+              y: (pt.y - bounds.top) / pixelSkip,
+              value: pin[dataType]
+            };
+          });
+
+        const imgData = ctx.getImageData(0, 0, width, height);
+
+        if (pinPixels.length === 0) {
+          for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+              if (!ctx.isPointInPath(x, y)) continue;
+              const i = (y * width + x) * 4;
+              imgData.data[i] = 204;
+              imgData.data[i + 1] = 204;
+              imgData.data[i + 2] = 204;
+              imgData.data[i + 3] = 180;
+            }
+          }
+        } else {
+          for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+              if (!ctx.isPointInPath(x, y)) continue;
+              const val = interpolate2D(x, y, pinPixels);
+              const color = dataType === 'ph' ? getColor(val) : getColorNPK(val, dataType);
+              const i = (y * width + x) * 4;
+              imgData.data[i] = color.r;
+              imgData.data[i + 1] = color.g;
+              imgData.data[i + 2] = color.b;
+              imgData.data[i + 3] = opaqueGradient ? 255 : 180;
+            }
+          }
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+
+        overlay.markers.forEach(marker => {
+          const hasValue = typeof marker._data?.[dataType] === "number";
+          marker.setVisible(map.getZoom() >= MIN_ZOOM_TO_SHOW_PINS && hasValue);
+          if (hasValue) marker.setLabel(String(marker._data[dataType]));
+        });
+      };
+
+      overlay.setMap(map);
+    }
+
+    function onDataTypeChange() {
+      const type = document.getElementById("dataTypeSelect").value;
+      const title = { ph: "pH", n: "Nitrogen", p: "Phosphorus", k: "Potassium" }[type];
+      document.getElementById("legend-title").textContent = title;
+
+      const container = document.getElementById("legend-content");
+      container.innerHTML = "";
+
+      if (type === "ph") {
+        const labels = [
+          [255, 0, 0], [255, 85, 0], [255, 165, 0], [255, 255, 0], [180, 255, 100],
+          [0, 200, 0], [0, 180, 90], [0, 160, 160], [0, 130, 255], [60, 60, 255], [120, 0, 255]
+        ];
+        const values = [4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0];
+        for (let i = 0; i < labels.length; i++) {
+          const color = `rgb(${labels[i].join(",")})`;
+          container.insertAdjacentHTML("beforeend",
+            `<div class="legend-item"><div class="legend-color" style="background: ${color};"></div>pH ${values[i]}</div>`);
+        }
+        } else {
+            const maxRanges = { n: 200, p: 100, k: 300 };
+            const max = maxRanges[type];
+            const steps = 5;
+            for (let i = 0; i <= steps; i++) {
+                const t = i / steps;
+
+                // Match new dark green scale
+                const r = Math.round(255 * (1 - t));
+                const g = Math.round(255 * (1 - 0.5 * t)); // G fades to 100
+                const b = Math.round(255 * (1 - t));
+
+                const val = Math.round(t * max);
+                const color = `rgb(${r},${g},${b})`;
+
+                container.insertAdjacentHTML("beforeend",
+                `<div class="legend-item"><div class="legend-color" style="background: ${color};"></div>${val} mg/kg</div>`);
+            }
+            }
+
+
+      map.panBy(0, 0);
+    }
+
+    function interpolate2D(x, y, pins) {
+      let num = 0, denom = 0;
+      pins.forEach(p => {
+        const dx = x - p.x;
+        const dy = y - p.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const weight = 1 / (dist + 1);
+        num += weight * p.value;
+        denom += weight;
+      });
+      return denom ? num / denom : pins[0].value;
+    }
+
+    function getColorNPK(value, type) {
+    const maxRanges = { n: 200, p: 100, k: 300 };
+    const max = maxRanges[type] || 100;
+    const t = Math.max(0, Math.min(value / max, 1));
+
+    // Dark green at full value (0, 100, 0), white at low
+    const r = Math.round(255 * (1 - t));
+    const g = Math.round(255 * (1 - 0.5 * t));  // G goes to 100
+    const b = Math.round(255 * (1 - t));
+
+    return { r, g, b };
+    }
+
+    function getColor(ph) {
+      const gradient = [
+        { pH: 4.0, color: [255, 0, 0] },
+        { pH: 4.5, color: [255, 85, 0] },
+        { pH: 5.0, color: [255, 165, 0] },
+        { pH: 5.5, color: [255, 255, 0] },
+        { pH: 6.0, color: [180, 255, 100] },
+        { pH: 6.5, color: [0, 200, 0] },
+        { pH: 7.0, color: [0, 180, 90] },
+        { pH: 7.5, color: [0, 160, 160] },
+        { pH: 8.0, color: [0, 130, 255] },
+        { pH: 8.5, color: [60, 60, 255] },
+        { pH: 9.0, color: [120, 0, 255] }
+      ];
+
+      if (ph <= gradient[0].pH) return rgbObj(gradient[0].color);
+      if (ph >= gradient[gradient.length - 1].pH) return rgbObj(gradient[gradient.length - 1].color);
+
+      for (let i = 0; i < gradient.length - 1; i++) {
+        const left = gradient[i];
+        const right = gradient[i + 1];
+        if (ph >= left.pH && ph <= right.pH) {
+          const ratio = (ph - left.pH) / (right.pH - left.pH);
+          const r = lerp(left.color[0], right.color[0], ratio);
+          const g = lerp(left.color[1], right.color[1], ratio);
+          const b = lerp(left.color[2], right.color[2], ratio);
+          return { r: Math.round(r), g: Math.round(g), b: Math.round(b) };
+        }
+      }
+
+      return { r: 0, g: 0, b: 0 };
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function rgbObj(rgb) {
+      return { r: rgb[0], g: rgb[1], b: rgb[2] };
+    }
+
+    function getPixelBounds(proj, coords) {
+      let top = Infinity, left = Infinity, right = -Infinity, bottom = -Infinity;
+      coords.forEach(p => {
+        const pt = proj.fromLatLngToDivPixel(new google.maps.LatLng(p.lat, p.lng));
+        top = Math.min(top, pt.y);
+        left = Math.min(left, pt.x);
+        right = Math.max(right, pt.x);
+        bottom = Math.max(bottom, pt.y);
+      });
+      return { top, left, right, bottom };
+    }
+
+    
+    function appendFieldToList(field) {
+      const item = document.createElement("div");
+      item.className = "field-item";
+      item.textContent = field.name || "Unnamed Field";
+      item.onclick = () => {
+        const bounds = new google.maps.LatLngBounds();
+        field.coords.forEach(c => bounds.extend(c));
+        map.fitBounds(bounds);
+      };
+      document.getElementById("fieldList").appendChild(item);
+    }
+
+
+    window.onload = initMap;
+
+
+    fetch("http://localhost:5000/check-session", {
+      credentials: "include"
+    }).then(res => res.json()).then(session => {
+      if (!session.logged_in) {
+        window.location.href = "login.html";
+      } else {
+        document.getElementById("username-display").innerText = session.username;
+      }
+    });
+
+    document.getElementById("logoutBtn").onclick = () => {
+      fetch("http://localhost:5000/logout", {
+        method: "POST",
+        credentials: "include"
+      }).then(() => window.location.href = "login.html");
+    };
+
+  </script>
+</body>
+</html>

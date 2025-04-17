@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AgroTla Login</title>
+  <link rel="icon" href="img/icon img.png" type="image/png">
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background-color: #f9f9f5;
+      color: #3C6E47;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      background: #ffffff;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    header img {
+      max-width: 320px;
+      height: auto;
+    }
+
+    .login-container {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    form {
+      background: white;
+      padding: 30px 40px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+    }
+
+    h2 {
+      margin-bottom: 25px;
+      color: #3C6E47;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 18px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
+      background-color: #3C6E47;
+      color: white;
+      border: none;
+      padding: 14px;
+      font-size: 16px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #2d5636;
+    }
+
+    .alt-link {
+      margin-top: 20px;
+      font-size: 14px;
+      color: #555;
+    }
+
+    .alt-link a {
+      color: #7C4A22;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    footer {
+      text-align: center;
+      padding: 20px;
+      font-size: 14px;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <img src="img/small main png img.png" alt="AgroTla Logo">
+  </header>
+
+  <div class="login-container">
+    <form onsubmit="handleLogin(event)">
+      <h2>Login to AgroTla</h2>
+      <input type="text" id="user_input" placeholder="Email or Username" required>
+      <input type="password" id="password" placeholder="Password" required>
+      <button type="submit">Login</button>
+      <div class="alt-link">
+        Don't have an account? <a href="register.html">Register</a>
+      </div>
+    </form>
+  </div>
+
+  <footer>
+    &copy; 2025 AgroTla. All rights reserved.
+  </footer>
+
+  <script>
+    async function handleLogin(event) {
+      event.preventDefault();
+
+      const user_input = document.getElementById("user_input").value.trim();
+      const password = document.getElementById("password").value;
+
+      try {
+        const res = await fetch("http://localhost:5000/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include", // 🧠 important!
+        body: JSON.stringify({ user_input, password })
+      });
+
+        const data = await res.json();
+        if (data.status === "success") {
+          window.location.href = "dashboard.html";
+        } else {
+          alert("❌ " + data.message);
+        }
+      } catch (err) {
+        alert("⚠️ Login failed. Check your server.");
+        console.error("Login error:", err);
+      }
+    }
+  </script>
+
+</body>
+</html>

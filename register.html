@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Register – AgroTla</title>
+  <link rel="icon" href="img/icon img.png" type="image/png">
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background-color: #f9f9f5;
+      color: #3C6E47;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 30px;
+      background: #ffffff;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    header img {
+      max-width: 240px;
+      height: auto;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .register-box {
+      background-color: #ffffff;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+      width: 100%;
+      max-width: 450px;
+      text-align: center;
+    }
+
+    .register-box h2 {
+      margin-bottom: 30px;
+      font-size: 28px;
+      color: #3C6E47;
+    }
+
+    .register-box input {
+      width: 100%;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 16px;
+      background: #fefefe;
+    }
+
+    .register-box button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      background-color: #3C6E47;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .register-box button:hover {
+      background-color: #2d5636;
+    }
+
+    .register-box .alt {
+      margin-top: 20px;
+      font-size: 14px;
+      color: #555;
+    }
+
+    .register-box .alt a {
+      color: #7C4A22;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 14px;
+      color: #aaa;
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <img src="img/small main png img.png" alt="AgroTla Logo">
+  </header>
+
+  <main>
+    <div class="register-box">
+      <h2>Create Your Account</h2>
+      <form onsubmit="return submitRegisterForm(event)">
+        <input type="text" id="username" placeholder="Username" required />
+        <input type="text" id="first_name" placeholder="First Name" required />
+        <input type="text" id="last_name" placeholder="Last Name" required />
+        <input type="email" id="email" placeholder="Email" required />
+        <input type="password" id="password" placeholder="Password" required />
+        <input type="password" id="confirm_password" placeholder="Confirm Password" required />
+        <button type="submit">Register</button>
+      </form>
+      <div class="alt">
+        Already have an account? <a href="login.html">Login</a>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    &copy; 2025 AgroTla. All rights reserved.
+  </footer>
+
+  <script>
+    async function submitRegisterForm(event) {
+      event.preventDefault();
+  
+      const data = {
+        username: document.getElementById('username').value.trim(),
+        first_name: document.getElementById('first_name').value.trim(),
+        last_name: document.getElementById('last_name').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        password: document.getElementById('password').value
+      };
+  
+      const confirm = document.getElementById('confirm_password').value;
+  
+      if (data.password !== confirm) {
+        alert("Passwords do not match.");
+        return false;
+      }
+  
+      try {
+        const res = await fetch("http://localhost:5000/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+  
+        const result = await res.json();
+        if (result.status === 'registered') {
+          alert("✅ Account created!");
+          window.location.href = "login.html";
+        } else {
+          alert("❌ " + result.message);
+        }
+      } catch (err) {
+        console.error("Registration error:", err);
+        alert("Something went wrong.");
+      }
+  
+      return false;
+    }
+  </script>
+  
+
+</body>
+</html>

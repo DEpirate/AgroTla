@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AgroTla Dashboard</title>
+  <link rel="icon" href="img/icon img.png" type="image/png">
+  <style>
+    html, body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background-color: #f9f9f5;
+      color: #3C6E47;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 40px;
+      background-color: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    header img {
+      height: 50px;
+    }
+
+    #username-display {
+      font-size: 16px;
+      font-weight: bold;
+    }
+
+    #logoutBtn {
+      margin-left: 20px;
+      padding: 6px 16px;
+      font-size: 14px;
+      border: none;
+      background-color: #7C4A22;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    #logoutBtn:hover {
+      background-color: #A8683D;
+      color: white;
+    }
+
+    main {
+      flex: 1;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .button-group {
+      margin-bottom: 40px;
+    }
+
+    .button-group button {
+      background-color: #3C6E47;
+      color: white;
+      font-size: 16px;
+      padding: 12px 24px;
+      margin: 10px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .button-group button:hover {
+      background-color: #2d5636;
+    }
+
+    .field-list {
+      width: 100%;
+      max-width: 800px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      padding: 20px;
+    }
+
+    .field-list h2 {
+      margin-top: 0;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 10px;
+    }
+
+    .field-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .field-item:last-child {
+      border-bottom: none;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 14px;
+      color: #aaa;
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <img src="img/small main png img.png" alt="AgroTla Logo">
+    <div>
+      <span id="username-display">...</span>
+      <button id="logoutBtn">Logout</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="button-group">
+      <button onclick="location.href='draw_fields.html'">Create Fields</button>
+      <button onclick="location.href='drop_pins.html'">Add Measurements</button>
+      <button onclick="location.href='gradient_field_fill.html'">View Gradients</button>
+    </div>
+
+    <div class="field-list">
+      <h2>Your Fields</h2>
+      <div id="fields-container"></div>
+    </div>
+  </main>
+
+  <footer>
+    &copy; 2025 AgroTla. All rights reserved.
+  </footer>
+
+  <script>
+    fetch("http://localhost:5000/check-session", {
+      credentials: "include"
+    })
+    .then(res => res.json())
+    .then(session => {
+      if (!session.logged_in) {
+        window.location.href = "login.html";
+      } else {
+        document.getElementById("username-display").innerText = session.username;
+
+        // Now load the user's fields
+        fetch("http://localhost:5000/get-user-fields", {
+          credentials: "include"
+        })
+        .then(res => res.json())
+        .then(data => {
+          const container = document.getElementById("fields-container");
+          container.innerHTML = "";
+          if (!data.fields || data.fields.length === 0) {
+            container.innerHTML = "<p>No fields found.</p>";
+          } else {
+            data.fields.forEach(field => {
+              const div = document.createElement("div");
+              div.className = "field-item";
+              const areaHa = field.area / 10000;
+              div.innerHTML = `<span><strong>${field.name}</strong></span><span>${areaHa.toFixed(3)} ha</span>`;
+              container.appendChild(div);
+            });
+          }
+        });
+      }
+    });
+
+    document.getElementById("logoutBtn").onclick = () => {
+      fetch("http://localhost:5000/logout", {
+        method: "POST",
+        credentials: "include"
+      }).then(() => {
+        window.location.href = "login.html";
+      });
+    };
+  </script>
+
+</body>
+</html>
